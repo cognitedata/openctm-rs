@@ -8,6 +8,10 @@ use std::{io, str};
 pub mod error;
 use error::Error;
 
+// The header size is usually 9 bytes in LZMA, but because OpenCTM deduces the unpacked size in
+// a non-standard way, the unpacked size is removed from the header
+static LZMA_HEADER_SIZE: usize = 5;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct File {
     pub indices: Vec<u32>,
@@ -121,6 +125,28 @@ pub trait ReadExt: io::Read {
         self.read_exact(&mut result)?;
         Ok(str::from_utf8(&result)?.to_string())
     }
+
+    fn read_packed_data(&mut self, unpacked_size: usize, interleaved_byte_count: usize) -> Result<Vec<u8>, Error> {
+        let packed_data_size = self.read_i32::<LittleEndian>()? as usize;
+        let packed_data_size_with_header = packed_data_size + LZMA_HEADER_SIZE;
+
+        // TODO do not read the data first, just give a view to the input
+        let mut packed_data = vec![0 as u8; packed_data_size_with_header];
+        self.read_exact(&mut packed_data)?;
+
+        let mut cursor = io::Cursor::new(packed_data);
+
+        let mut decomp = vec![0 as u8; unpacked_size];
+        let mut writer = InterleavedWriter::new(&mut decomp, interleaved_byte_count);
+        lzma_rs::lzma_decompress_with_options(
+            &mut cursor,
+            &mut writer,
+            &lzma_rs::decompress::Options {
+                unpacked_size: lzma_rs::decompress::UnpackedSize::UseProvided(Some(unpacked_size as u64)),
+            },
+        )?;
+        Ok(decomp)
+    }
 }
 
 impl<T: io::Read> ReadExt for T {}
@@ -167,18 +193,7 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
         assert_eq!("INDX".as_bytes(), magic_bytes);
 
         let index_count = 3 * triangle_count;
-        let _indices_packed_size = input.read_i32::<LittleEndian>()?;
-
-        let mut decomp = vec![0 as u8; index_count * 4];
-        let mut writer = InterleavedWriter::new(&mut decomp, 3 * 4);
-        lzma_rs::lzma_decompress(
-            &mut input,
-            &mut writer,
-            &lzma_rs::LZOptions {
-                unpacked_size: Some((index_count * 4) as u64),
-            },
-        )
-        .unwrap();
+        let decomp = input.read_packed_data(4 * index_count, 3 * 4)?;
 
         let mut indices = vec![Default::default(); index_count];
         let mut rdr = io::Cursor::new(decomp);
@@ -214,23 +229,11 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
         input.read_exact(&mut magic_bytes)?;
         assert_eq!("VERT".as_bytes(), magic_bytes);
 
-        let _vertices_packed_size = input.read_i32::<LittleEndian>()?;
+        let component_count = vertex_count * 3;
+        let decomp = input.read_packed_data(4 * component_count, 4)?;
 
-        let vertex_component_count = vertex_count * 3;
-
-        let mut decomp_vertices = vec![0 as u8; vertex_component_count * 4];
-        let mut writer = InterleavedWriter::new(&mut decomp_vertices, 4);
-        lzma_rs::lzma_decompress(
-            &mut input,
-            &mut writer,
-            &lzma_rs::LZOptions {
-                unpacked_size: Some((vertex_component_count * 4) as u64),
-            },
-        )
-        .unwrap();
-
-        let mut components = vec![Default::default(); vertex_component_count];
-        let mut rdr = io::Cursor::new(decomp_vertices);
+        let mut components = vec![Default::default(); component_count];
+        let mut rdr = io::Cursor::new(decomp);
         rdr.read_f32_into::<LittleEndian>(&mut components)?;
 
         let mut vertices = vec![Default::default(); vertex_count];
@@ -251,20 +254,9 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
             input.read_exact(&mut magic_bytes)?;
             assert_eq!("NORM".as_bytes(), magic_bytes);
 
-            let _vertices_packed_size = input.read_i32::<LittleEndian>()?;
-
             let component_count = vertex_count * 3;
 
-            let mut decomp = vec![0 as u8; component_count * 4];
-            let mut writer = InterleavedWriter::new(&mut decomp, 4);
-            lzma_rs::lzma_decompress(
-                &mut input,
-                &mut writer,
-                &lzma_rs::LZOptions {
-                    unpacked_size: Some((component_count * 4) as u64),
-                },
-            )
-            .unwrap();
+            let decomp = input.read_packed_data(4 * component_count, 4)?;
 
             let mut components = vec![Default::default(); component_count];
             let mut rdr = io::Cursor::new(decomp);
@@ -292,19 +284,9 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
             let name = input.read_ctm_string()?;
             let file_name = input.read_ctm_string()?;
 
-            let _packed_size = input.read_i32::<LittleEndian>()?;
             let component_count = vertex_count * 2;
 
-            let mut decomp = vec![0 as u8; component_count * 4];
-            let mut writer = InterleavedWriter::new(&mut decomp, 4);
-            lzma_rs::lzma_decompress(
-                &mut input,
-                &mut writer,
-                &lzma_rs::LZOptions {
-                    unpacked_size: Some((component_count * 4) as u64),
-                },
-            )
-            .unwrap();
+            let decomp = input.read_packed_data(4 * component_count, 4)?;
 
             let mut components = vec![Default::default(); component_count];
             let mut rdr = io::Cursor::new(decomp);
