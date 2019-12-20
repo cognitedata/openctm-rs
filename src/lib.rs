@@ -70,8 +70,8 @@ impl PartialEq for TextureCoordinate {
 impl PartialEq for UvMap {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
-        && self.file_name == other.file_name
-        && self.coordinates == other.coordinates
+            && self.file_name == other.file_name
+            && self.coordinates == other.coordinates
     }
 }
 
@@ -126,7 +126,11 @@ pub trait ReadExt: io::Read {
         Ok(str::from_utf8(&result)?.to_string())
     }
 
-    fn read_packed_data(&mut self, unpacked_size: usize, interleaved_byte_count: usize) -> Result<Vec<u8>, Error> {
+    fn read_packed_data(
+        &mut self,
+        unpacked_size: usize,
+        interleaved_byte_count: usize,
+    ) -> Result<Vec<u8>, Error> {
         let packed_data_size = self.read_i32::<LittleEndian>()? as usize;
         let packed_data_size_with_header = packed_data_size + LZMA_HEADER_SIZE;
 
@@ -142,7 +146,9 @@ pub trait ReadExt: io::Read {
             &mut cursor,
             &mut writer,
             &lzma_rs::decompress::Options {
-                unpacked_size: lzma_rs::decompress::UnpackedSize::UseProvided(Some(unpacked_size as u64)),
+                unpacked_size: lzma_rs::decompress::UnpackedSize::UseProvided(Some(
+                    unpacked_size as u64,
+                )),
             },
         )?;
         Ok(decomp)

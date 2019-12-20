@@ -2,9 +2,9 @@ use clap::clap_app;
 use openctm;
 use serde_json;
 use serde_yaml;
+use std::error::Error;
 use std::fs::File;
 use std::io::{stdin, stdout, Read};
-use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = clap_app!(("openctm-dump") =>
