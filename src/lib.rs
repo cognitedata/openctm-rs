@@ -66,8 +66,8 @@ impl PartialEq for TextureCoordinate {
 impl PartialEq for UvMap {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
-        && self.file_name == other.file_name
-        && self.coordinates == other.coordinates
+            && self.file_name == other.file_name
+            && self.coordinates == other.coordinates
     }
 }
 
