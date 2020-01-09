@@ -1,3 +1,7 @@
+// Allow unreadable literals to make it easier to copy-paste numbers into the source code for
+// testing
+#![allow(clippy::unreadable_literal)]
+
 use openctm::{parse, TextureCoordinate, UvMap, Vertex};
 
 #[cfg(test)]
