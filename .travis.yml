@@ -8,3 +8,10 @@ matrix:
     - rust: nightly
   fast_finish: true
 cache: cargo
+before_script:
+  - rustup component add clippy
+  - rustup component add rustfmt
+script:
+  - cargo fmt -- --check
+  - cargo clippy --all-targets --all-features -- -D warnings
+  - cargo test --all --verbose

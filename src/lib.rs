@@ -22,9 +22,9 @@ pub struct File {
 
 #[derive(FromPrimitive, Deserialize, Serialize)]
 pub enum CompressionMethod {
-    RAW = 0x00574152,
-    MG1 = 0x0031474d,
-    MG2 = 0x0032474d,
+    RAW = 0x0057_4152,
+    MG1 = 0x0031_474d,
+    MG2 = 0x0032_474d,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
@@ -162,7 +162,7 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
         let mut magic_bytes = [0 as u8; 4];
         input.read_exact(&mut magic_bytes)?;
         // TODO do not assert, but return Error instead
-        assert_eq!("OCTM".as_bytes(), magic_bytes);
+        assert_eq!(b"OCTM", &magic_bytes);
     }
 
     let file_format = input.read_i32::<LittleEndian>()?;
@@ -185,18 +185,18 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
     let mut comment = vec![0; comment_length as usize];
     input.read_exact(&mut comment)?;
 
-    let has_normals = (flags & 0x00000001) == 0x00000001;
+    let has_normals = (flags & 0x0000_0001) == 0x0000_0001;
 
     match num::FromPrimitive::from_i32(compression_method) {
         Some(CompressionMethod::MG1) => {}
-        Some(_) => return Err(error!("Compression method not yet implemented").into()), // TODO replace with Result
-        None => return Err(error!("Unknown compression method").into()), // TODO replace with Result
+        Some(_) => return Err(error!("Compression method not yet implemented")), // TODO replace with Result
+        None => return Err(error!("Unknown compression method")), // TODO replace with Result
     };
 
     let indices = {
         let mut magic_bytes = [0 as u8; 4];
         input.read_exact(&mut magic_bytes)?;
-        assert_eq!("INDX".as_bytes(), magic_bytes);
+        assert_eq!(b"INDX", &magic_bytes);
 
         let index_count = 3 * triangle_count;
         let decomp = input.read_packed_data(4 * index_count, 3 * 4)?;
@@ -222,7 +222,7 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
         let mut triangles = vec![Default::default(); triangle_count];
         for i in 0..triangle_count {
             triangles[i] = Triangle {
-                a: indices[3 * i + 0],
+                a: indices[3 * i],
                 b: indices[3 * i + 1],
                 c: indices[3 * i + 2],
             }
@@ -233,7 +233,7 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
     let vertices = {
         let mut magic_bytes = [0 as u8; 4];
         input.read_exact(&mut magic_bytes)?;
-        assert_eq!("VERT".as_bytes(), magic_bytes);
+        assert_eq!(b"VERT", &magic_bytes);
 
         let component_count = vertex_count * 3;
         let decomp = input.read_packed_data(4 * component_count, 4)?;
@@ -245,7 +245,7 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
         let mut vertices = vec![Default::default(); vertex_count];
         for i in 0..vertex_count {
             vertices[i] = Vertex {
-                x: components[3 * i + 0],
+                x: components[3 * i],
                 y: components[3 * i + 1],
                 z: components[3 * i + 2],
             }
@@ -253,31 +253,30 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
         vertices
     };
 
-    let normals = match has_normals {
-        false => None,
-        true => {
-            let mut magic_bytes = [0 as u8; 4];
-            input.read_exact(&mut magic_bytes)?;
-            assert_eq!("NORM".as_bytes(), magic_bytes);
+    let normals = if !has_normals {
+        None
+    } else {
+        let mut magic_bytes = [0 as u8; 4];
+        input.read_exact(&mut magic_bytes)?;
+        assert_eq!(b"NORM", &magic_bytes);
 
-            let component_count = vertex_count * 3;
+        let component_count = vertex_count * 3;
 
-            let decomp = input.read_packed_data(4 * component_count, 4)?;
+        let decomp = input.read_packed_data(4 * component_count, 4)?;
 
-            let mut components = vec![Default::default(); component_count];
-            let mut rdr = io::Cursor::new(decomp);
-            rdr.read_f32_into::<LittleEndian>(&mut components)?;
+        let mut components = vec![Default::default(); component_count];
+        let mut rdr = io::Cursor::new(decomp);
+        rdr.read_f32_into::<LittleEndian>(&mut components)?;
 
-            let mut normals = vec![Default::default(); vertex_count];
-            for i in 0..vertex_count {
-                normals[i] = Normal {
-                    x: components[3 * i + 0],
-                    y: components[3 * i + 1],
-                    z: components[3 * i + 2],
-                }
+        let mut normals = vec![Default::default(); vertex_count];
+        for i in 0..vertex_count {
+            normals[i] = Normal {
+                x: components[3 * i],
+                y: components[3 * i + 1],
+                z: components[3 * i + 2],
             }
-            Some(normals)
         }
+        Some(normals)
     };
 
     let uv_maps = {
@@ -285,7 +284,7 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
         for _ in 0..uv_map_count {
             let mut magic_bytes = [0 as u8; 4];
             input.read_exact(&mut magic_bytes)?;
-            assert_eq!("TEXC".as_bytes(), magic_bytes);
+            assert_eq!(b"TEXC", &magic_bytes);
 
             let name = input.read_ctm_string()?;
             let file_name = input.read_ctm_string()?;
@@ -301,7 +300,7 @@ pub fn parse(mut input: impl io::BufRead) -> Result<File, Error> {
             let mut coordinates = vec![Default::default(); vertex_count];
             for i in 0..vertex_count {
                 coordinates[i] = TextureCoordinate {
-                    u: components[2 * i + 0],
+                    u: components[2 * i],
                     v: components[2 * i + 1],
                 }
             }
