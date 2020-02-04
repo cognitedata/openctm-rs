@@ -1,10 +1,10 @@
 use openctm;
+use serde_derive::{Deserialize, Serialize};
 use serde_json;
 use serde_yaml;
-use serde_derive::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::File;
-use std::io::{stdout};
+use std::io::stdout;
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -32,7 +32,7 @@ enum Output {
         vertices: usize,
         indices: usize,
         normals: Option<usize>,
-        uv_maps: Vec<UvMapStats>
+        uv_maps: Vec<UvMapStats>,
     },
 }
 
@@ -49,13 +49,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             vertices: file.vertices.len(),
             normals: match file.normals {
                 Some(x) => Some(x.len()),
-                None => None
+                None => None,
             },
-            uv_maps: file.uv_maps.into_iter().map(|x| UvMapStats {
-                name: x.name,
-                file_name: x.file_name,
-                coordinates: x.coordinates.len()
-            }).collect(),
+            uv_maps: file
+                .uv_maps
+                .into_iter()
+                .map(|x| UvMapStats {
+                    name: x.name,
+                    file_name: x.file_name,
+                    coordinates: x.coordinates.len(),
+                })
+                .collect(),
         }
     } else {
         Output::File(file)
