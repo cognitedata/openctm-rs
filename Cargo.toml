@@ -16,5 +16,5 @@ clap = "2.33.0"
 serde_yaml = "0.8.9"
 
 [dependencies.lzma-rs]
-rev = "0117fcdecf55de9a7a95d855d0be388afd109aae"
+rev = "cb4877e35e09e4b68b0cff6e9e1e02a6773154a8"
 git = "git://github.com/dragly/lzma-rs/"
