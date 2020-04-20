@@ -18,5 +18,5 @@ structopt = "0.3.9"
 serde_derive = "1.0.104"
 
 [dependencies.lzma-rs]
-rev = "94553d62c0e59172823c0be3d9354506c65d1152"
+rev = "3fcf0bbfc5f13f22a35d397c568387ec4cfac8e4"
 git = "git://github.com/gendx/lzma-rs/"

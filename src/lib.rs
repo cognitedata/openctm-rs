@@ -1,5 +1,4 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use lzma_rs;
 use num_derive::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{io, str};
